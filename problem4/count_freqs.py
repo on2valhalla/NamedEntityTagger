@@ -164,6 +164,7 @@ class Hmm(object):
 
         self.word_counts[self.rare_symbol] = 0
         for ne_tag in self.all_states:
+            # sys.stderr.write(ne_tag + '\n')
             self.emission_counts[(self.rare_symbol, ne_tag)] = 0
 
         rare_words = set()
@@ -172,10 +173,12 @@ class Hmm(object):
             if count < self.low_freq:
                 # delete the count for this word and add it to the rare count
                 self.word_counts[self.rare_symbol] += count
+                # sys.stderr.write(word + '\n')
                 rare_words.add(word)
                 # do the same for each tag's emission counts
                 for ne_tag in self.all_states:
                     if (word, ne_tag) in self.emission_counts:
+                        # sys.stderr.write(word + ' ' + ne_tag + '\n')
                         self.emission_counts[(self.rare_symbol, ne_tag)] += self.emission_counts[(word, ne_tag)]
                         del self.emission_counts[(word, ne_tag)]
 
@@ -201,12 +204,7 @@ class Hmm(object):
             sys.stderr.write("Faulty arguments for emission probability")
             return -1
 
-    def maximum_likelyhood_probability(self, ngram):
-        """
-        Ngram is a tuple representing the
-        """
-        if 
-
+                
 
 
 def usage():

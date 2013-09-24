@@ -14,17 +14,23 @@ from count_freqs import Hmm
 Read in counts file and tag development data
 """
 
-class EmissionProbabilityTagger(object):
+class MaximumLikelyhoodTagger(object):
     """
-    Entity tagger using HMM trained on emission probabilities
+    Entity tagger using HMM trained on maximum likelyhood trigram probabilities
     """
 
     def __init__(self, hmm):
         self.hmm = hmm
         self.seen_tags = defaultdict(str)
+        # trigram length to condition on
+        self.n = 3
 
     def tag_data(self, testfile, tagfile_out):
-        for line in testfile:
+
+        ngram_iterator = \
+            get_ngrams(sentence_iterator(simple_conll_corpus_iterator(corpus_file)), 3)
+
+        for ngram in ngram_iterator:
             word = line.strip()
             if word == '':
                 tagfile_out.write('\n')
@@ -32,9 +38,9 @@ class EmissionProbabilityTagger(object):
             max_prob = 0
             max_tag = None
             for tag in self.hmm.all_states:
-                em_prob = self.hmm.emission_probability(word, tag)
-                if max_prob < em_prob:
-                    max_prob = em_prob
+                prob = self.hmm.max_likelyhood_trigram(ngram)
+                if max_prob < prob:
+                    max_prob = prob
                     max_tag = tag
 
             if max_prob > 0:
@@ -47,7 +53,7 @@ class EmissionProbabilityTagger(object):
             else:
                 sys.stderr.write(word + ' NOT_FOUND\n')
                 self.seen_tags[word] = 'NOT_FOUND'
-                
+
             tagfile_out.write(word + ' ' + self.seen_tags[word] + '\n')
 
 

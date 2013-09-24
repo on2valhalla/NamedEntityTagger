@@ -14,9 +14,10 @@ from count_freqs import Hmm
 Read in counts file and tag development data
 """
 
+
 class EmissionProbabilityTagger(object):
     """
-    Entity tagger using HMM trained on emission probabilities
+    Stores counts for n-grams and emissions. 
     """
 
     def __init__(self, hmm):
@@ -37,6 +38,7 @@ class EmissionProbabilityTagger(object):
                     max_prob = em_prob
                     max_tag = tag
 
+
             if max_prob > 0:
                 max_prob = math.log(max_prob, 2)
             else:
@@ -47,8 +49,11 @@ class EmissionProbabilityTagger(object):
             else:
                 sys.stderr.write(word + ' NOT_FOUND\n')
                 self.seen_tags[word] = 'NOT_FOUND'
-                
+
+            sys.stderr.write(word + ' ' + self.seen_tags[word] + '\n')
             tagfile_out.write(word + ' ' + self.seen_tags[word] + '\n')
+
+
 
 
 def usage():
