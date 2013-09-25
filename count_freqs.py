@@ -26,10 +26,10 @@ def simple_conll_corpus_iterator(corpus_file):
             # Each line has the format
             # word pos_tag phrase_tag ne_tag
             fields = line.split(" ")
-            ne_tag = fields[-1]
+            ne_tag = fields[-1] if len(fields) > 1 else None
             #phrase_tag = fields[-2] #Unused
             #pos_tag = fields[-3] #Unused
-            word = " ".join(fields[:-1]) if len(fields) > 1 else ne_tag
+            word = " ".join(fields[:-1]) if len(fields) > 1 else fields[-1]
             yield (word, ne_tag)
         else: # Empty line
             yield (None, None)                

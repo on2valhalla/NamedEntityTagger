@@ -45,8 +45,6 @@ class ViterbiEntityTagger(object):
                         for w in all_tags if i > 1 else ['*']:
                             prob = (pi[(i-1, w, u)] * self.hmm.ml_prob(v, (w, u))
                                         * self.hmm.emission_prob(sent[i][0], v))
-                            # sys.stderr.write(str((i-1, w, u)) + '\t' + str(self.hmm.ml_prob(v, (w, u)))
-                            #      + '\t' + str(self.hmm.emission_prob(sent[i][0], v)) + '\t' + str(prob) + '\n')
                             if max_prob < prob:
                                 max_prob = prob
                                 max_tag = w
@@ -56,7 +54,7 @@ class ViterbiEntityTagger(object):
 
             max_sent_prob = 0
             final_tags = [None]*n
-            for u in all_tags:
+            for u in all_tags if len(sent) > 1 else ['*']:
                 for v in all_tags:
                     prob = pi[(n-1, u, v)] * self.hmm.ml_prob('STOP', (u, v))
                     if max_sent_prob < prob:
@@ -65,56 +63,29 @@ class ViterbiEntityTagger(object):
                         final_tags[n-1] = v
 
             for i in range(n-3, -1, -1):
-                # sys.stderr.write(str(i) + '\n')
                 final_tags[i] = bp[(i+2, final_tags[i+1], final_tags[i+2])]
 
-            # sys.stderr.write(str(final_tags))
 
-            for i in range(n-3):
-                # sys.stderr.write(str(i) + '\n')
+            final_tags.append('*')
+            final_tags.append('*')
+            for i in range(n-1):
                 word = sent[i][0]
                 tag = final_tags[i]
-                log_prob = math.log(pi[(i, final_tags[i+1], final_tags[i+2])], 2)
+                log_prob = 0
+                
+                if max_sent_prob <= 0:
+                    sys.stderr.write('Zero probability. Not good\n')
+                else:
+                    log_prob = math.log(pi[(i, final_tags[i-1], final_tags[i])], 2)
+
                 tagfile_out.write('%s %s %f\n' % (word, tag, log_prob))
 
-            tagfile_out.write('%s %s %f\n' % (sent[n-2][0], final_tags[n-2], math.log(max_sent_prob, 2)))
-            tagfile_out.write('%s %s %f\n' % (sent[n-1][0], final_tags[n-1], math.log(max_sent_prob, 2)))
+            if max_sent_prob <= 0:
+                sys.stderr.write('Zero probability. Not good\n')
+            else:
+                tagfile_out.write('%s %s %f\n' % (sent[n-1][0], final_tags[n-1], math.log(max_sent_prob, 2)))
+                tagfile_out.write('\n')
 
-            tagfile_out.write('\n')
-
-
-
-
-
-
-
-
-
-
-            # word = line.strip()
-            # if word == '':
-            #     tagfile_out.write('\n')
-            #     continue
-            # max_prob = 0
-            # max_tag = None
-            # for tag in self.hmm.all_states:
-            #     prob = self.hmm.max_likelyhood_trigram(ngram)
-            #     if max_prob < prob:
-            #         max_prob = prob
-            #         max_tag = tag
-
-            # if max_prob > 0:
-            #     max_prob = math.log(max_prob, 2)
-            # else:
-            #     max_prob = 0
-
-            # if max_tag is not None:
-            #     self.seen_tags[word] = max_tag + ' ' + str(max_prob)
-            # else:
-            #     sys.stderr.write(word + ' NOT_FOUND\n')
-            #     self.seen_tags[word] = 'NOT_FOUND'
-
-            # tagfile_out.write(word + ' ' + self.seen_tags[word] + '\n')
 
 
 def usage():
