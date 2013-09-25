@@ -1,6 +1,6 @@
 #! /usr/bin/python
 
-__author__="Daniel Bauer <bauer@cs.columbia.edu>"
+__author__="Daniel Bauer <bauer@cs.columbia.edu> and Jason Mann <jcm2207@columbia.edu>"
 __date__ ="$Sep 12, 2011"
 
 import sys
@@ -29,10 +29,10 @@ def simple_conll_corpus_iterator(corpus_file):
             ne_tag = fields[-1]
             #phrase_tag = fields[-2] #Unused
             #pos_tag = fields[-3] #Unused
-            word = " ".join(fields[:-1])
-            yield word, ne_tag
+            word = " ".join(fields[:-1]) if len(fields) > 1 else ne_tag
+            yield (word, ne_tag)
         else: # Empty line
-            yield (None, None)                        
+            yield (None, None)                
         l = corpus_file.readline()
 
 def sentence_iterator(corpus_iterator):
@@ -41,7 +41,7 @@ def sentence_iterator(corpus_iterator):
     Sentences are represented as lists of (word, ne_tag) tuples.
     """
     current_sentence = [] #Buffer for the current sentence
-    for l in corpus_iterator:        
+    for l in corpus_iterator:
             if l==(None, None):
                 if current_sentence:  #Reached the end of a sentence
                     yield current_sentence
@@ -190,7 +190,7 @@ class Hmm(object):
                 line_pair[0] = self.rare_symbol
             rarecorpusfile.write(' '.join(line_pair))
 
-    def emission_probability(self, word, tag):
+    def emission_prob(self, word, tag):
         if (word, tag) in self.emission_counts:  # pair has a valid emission count
             return self.emission_counts[(word, tag)] / self.ngram_counts[0][(tag,)]
         elif word in self.word_counts:  # word exists with another tag, set this prob as 0
@@ -201,13 +201,14 @@ class Hmm(object):
             sys.stderr.write("Faulty arguments for emission probability")
             return -1
 
-    def trigram_max_likelyhood_probability(self, tag, bigram):
+    def ml_prob(self, tag, bigram):
         """
         Ngram is a tuple representing a trigram of tags
         """
-        if bigram in self.ngram_counts[1] and bigram + (tag,) in self.ngram_counts[2]:
+        trigram = bigram + (tag,)
+        if bigram in self.ngram_counts[1] and trigram in self.ngram_counts[2]:
             # both the trigram and bigram have valid counts
-            return self.ngram_counts[2][ngram] / self.ngram_counts[1][ngram[:1]]
+            return self.ngram_counts[2][trigram] / self.ngram_counts[1][bigram]
         elif tag in self.all_states.union(['STOP']) and bigram[0] in self.all_states.union(['*']) \
             and bigram[1] in self.all_states.union(['*']):
             return 0
@@ -236,7 +237,7 @@ if __name__ == "__main__":
         input = file(sys.argv[1],"r")
         rarecorpusfile = file(sys.argv[1] + '.rare', 'w')
     except IOError:
-        sys.stderr.write("ERROR: Cannot read inputfile %s.\n" % arg)
+        sys.stderr.write("ERROR: Cannot read inputfile %s.\n" % sys.argv[1])
         sys.exit(1)
     
     # Initialize a trigram counter

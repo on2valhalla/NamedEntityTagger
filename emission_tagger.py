@@ -34,7 +34,7 @@ class EmissionProbabilityTagger(object):
             max_prob = 0
             max_tag = None
             for tag in self.hmm.all_states:
-                em_prob = self.hmm.emission_probability(word, tag)
+                em_prob = self.hmm.emission_prob(word, tag)
                 if max_prob < em_prob:
                     sys.stderr.write('%f ' % max_prob)
                     max_prob = em_prob
@@ -45,7 +45,6 @@ class EmissionProbabilityTagger(object):
             elif max_prob < 0:
                 sys.stderr.write('negative probability: %s' % word)
 
-            sys.stderr.write('%s %s %f\n' % (word, max_tag, max_prob))
             tagfile_out.write('%s %s %f\n' % (word, max_tag, max_prob))
 
 
