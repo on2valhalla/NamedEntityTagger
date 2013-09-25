@@ -132,8 +132,8 @@ class Hmm(object):
                 output.write("%i %i-GRAM %s\n" %(self.ngram_counts[n-1][ngram], n, ngramstr))
 
         # And counts for all words  
-        for word in self.word_counts:
-            output.write("%i WORDCOUNT %s\n" %(self.word_counts[word], word))
+        # for word in self.word_counts:
+        #     output.write("%i WORDCOUNT %s\n" %(self.word_counts[word], word))
 
     def read_counts(self, countsfile):
 
@@ -201,11 +201,19 @@ class Hmm(object):
             sys.stderr.write("Faulty arguments for emission probability")
             return -1
 
-    def maximum_likelyhood_probability(self, ngram):
+    def trigram_max_likelyhood_probability(self, tag, bigram):
         """
-        Ngram is a tuple representing the
+        Ngram is a tuple representing a trigram of tags
         """
-        if 
+        if bigram in self.ngram_counts[1] and bigram + (tag,) in self.ngram_counts[2]:
+            # both the trigram and bigram have valid counts
+            return self.ngram_counts[2][ngram] / self.ngram_counts[1][ngram[:1]]
+        elif tag in self.all_states.union(['STOP']) and bigram[0] in self.all_states.union(['*']) \
+            and bigram[1] in self.all_states.union(['*']):
+            return 0
+        else:
+            sys.stderr.write("Faulty arguments for trigram max likelyhood probability")
+            return -1
 
 
 
