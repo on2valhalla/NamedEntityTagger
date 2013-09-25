@@ -22,7 +22,8 @@ class EmissionProbabilityTagger(object):
 
     def __init__(self, hmm):
         self.hmm = hmm
-        self.seen_tags = defaultdict(str)
+        self.max_tags = defaultdict(str)
+        self.max_probs = defaultdict(float)
 
     def tag_data(self, testfile, tagfile_out):
         for line in testfile:
@@ -35,22 +36,17 @@ class EmissionProbabilityTagger(object):
             for tag in self.hmm.all_states:
                 em_prob = self.hmm.emission_probability(word, tag)
                 if max_prob < em_prob:
+                    sys.stderr.write('%f ' % max_prob)
                     max_prob = em_prob
                     max_tag = tag
 
-
             if max_prob > 0:
                 max_prob = math.log(max_prob, 2)
-            else:
-                max_prob = 0
+            elif max_prob < 0:
+                sys.stderr.write('negative probability: %s' % word)
 
-            if max_tag is not None:
-                self.seen_tags[word] = max_tag + ' ' + str(max_prob)
-            else:
-                sys.stderr.write(word + ' NOT_FOUND\n')
-                self.seen_tags[word] = 'NOT_FOUND'
-
-            tagfile_out.write(word + ' ' + self.seen_tags[word] + '\n')
+            sys.stderr.write('%s %s %f\n' % (word, max_tag, max_prob))
+            tagfile_out.write('%s %s %f\n' % (word, max_tag, max_prob))
 
 
 

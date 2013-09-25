@@ -16,6 +16,12 @@ Question 4
 	$ eval_ne_tagger.py ner_dev.key ner_dev.tagged
 
 
+Implementation Notes
+--------------------
+I kept track of word counts to assist with assigning zero emission probabilities.
+
+
+
 Results
 -------
 Found 14043 NEs. Expected 5931 NEs; Correct: 3117.

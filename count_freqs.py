@@ -132,8 +132,8 @@ class Hmm(object):
                 output.write("%i %i-GRAM %s\n" %(self.ngram_counts[n-1][ngram], n, ngramstr))
 
         # And counts for all words  
-        # for word in self.word_counts:
-        #     output.write("%i WORDCOUNT %s\n" %(self.word_counts[word], word))
+        for word in self.word_counts:
+            output.write("%i WORDCOUNT %s\n" %(self.word_counts[word], word))
 
     def read_counts(self, countsfile):
 
