@@ -155,8 +155,14 @@ class Hmm(object):
                 ngram = tuple(parts[2:])
                 self.ngram_counts[n-1][ngram] = count
             elif parts[1] == "WORDCOUNT":
+                # Keep track of word counts for _RARE_ labelling automation
                 word = parts[-1]
                 self.word_counts[word] = count
+
+
+########################################################
+#########  Functions by Jason Mann #####################
+########################################################
 
     def replace_rare(self, corpusfile, rarecorpusfile):
         if self.word_counts is None:

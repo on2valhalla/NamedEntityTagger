@@ -65,14 +65,11 @@ class ViterbiEntityTagger(object):
             for i in range(n-3, -1, -1):
                 final_tags[i] = bp[(i+2, final_tags[i+1], final_tags[i+2])]
 
-
-            final_tags.append('*')
-            final_tags.append('*')
             for i in range(n-1):
                 word = sent[i][0]
                 tag = final_tags[i]
                 log_prob = 0
-                
+
                 if max_sent_prob <= 0:
                     sys.stderr.write('Zero probability. Not good\n')
                 else:
