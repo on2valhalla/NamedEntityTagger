@@ -70,7 +70,7 @@ class ViterbiEntityTagger(object):
                 tag = final_tags[i]
                 log_prob = 0
 
-                if max_sent_prob <= 0:
+                if pi[(i, final_tags[i-1], final_tags[i])] <= 0:
                     sys.stderr.write('Zero probability. Not good\n')
                 else:
                     log_prob = math.log(pi[(i, final_tags[i-1], final_tags[i])], 2)

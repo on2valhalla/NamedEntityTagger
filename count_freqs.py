@@ -74,6 +74,22 @@ def get_ngrams(sent_iterator, n):
             yield n_gram        
 
 
+ALLNUM = '_ALLNUM_'
+ALLCAPS = '_ALLCAPS_'
+NUM2D = '_NUM2D_'
+NUM4D = '_NUM4D_'
+NUMALPHA = '_NUMALPHA_'
+NUMDASH = '_NUMDASH_'
+NUMSLASH = '_NUMSLASH_'
+NUMCOMMA = '_NUMCOMMA_'
+NUMPERIOD = '_NUMPERIOD_'
+NUMOTHER = '_NUMOTHER_'
+CAPPERIOD = '_CAPPERIOD_'
+INITCAP = '_INITCAP_'
+FIRSTWORD = '_FIRSTWORD_'
+LOWERCASE = '_LOWERCASE_'
+RARE = '_RARE_'
+
 class Hmm(object):
     """
     Stores counts for n-grams and emissions. 
@@ -82,7 +98,6 @@ class Hmm(object):
     def __init__(self, n=3):
         assert n>=2, "Expecting n>=2."
         self.n = n
-        self.rare_symbol = "_RARE_"
         self.low_freq = 5
         self.emission_counts = defaultdict(int)
         self.ngram_counts = [defaultdict(int) for i in xrange(self.n)]
@@ -108,7 +123,7 @@ class Hmm(object):
                 self.ngram_counts[0][tagsonly[-1:]] += 1 # count 1-gram
                 self.emission_counts[ngram[-1]] += 1 # and emission frequencies
                 self.word_counts[ngram[-1][0]] += 1 # and word counts
-                self.all_states.add(ngram[-1][1])
+                self.all_states.add(ngram[-1][1])  # add tag to a set recording all seen
 
             # Need to count a single n-1-gram of sentence start symbols per sentence
             if ngram[-2][0] is None: # this is the first n-gram in a sentence
@@ -118,7 +133,9 @@ class Hmm(object):
         """
         Writes counts to the output file object.
         Format:
-
+            [count] WORDTAG [tag] [word]
+            [count] [n]-GRAM [tag] ([tag]) ([tag])
+            [count] WORDCOUNT [word]
         """
         # First write counts for emissions
         for word, ne_tag in self.emission_counts:            
@@ -136,6 +153,10 @@ class Hmm(object):
             output.write("%i WORDCOUNT %s\n" %(self.word_counts[word], word))
 
     def read_counts(self, countsfile):
+        """
+        Read in counts of a corpus from a file specified by countsfile
+        and store them in objects
+        """
 
         self.n = 3
         self.emission_counts = defaultdict(int)
@@ -163,26 +184,64 @@ class Hmm(object):
 ########################################################
 #########  Functions by Jason Mann #####################
 ########################################################
+    
+    def rare_symbol(self, word = None):
+        """
+        Assign symbols to rare words based on simple lexical categories, or just _RARE_
+        """
+        symbol = RARE
+
+        if word is not None:
+            pass
+            # if word contains digit:
+            #     if word is all nums:
+            #         if len(word) == 2 and :
+            #             symbol = NUM
+            #         elif len(word) == 4:
+            #             symbol = NUM4D
+            #         else:
+            #             symbol = ALLNUM
+            #     elif word contains alpha:
+            #         symbol = NUMALPHA
+            #     elif word contains dash:
+            #         symbol = NUMDASH
+            #     elif word contains slash:
+            #         symbol = NUMSLASH
+            #     elif word contains comma:
+            #         symbol = NUMCOMMA
+            #     elif word contains period:
+            #         symbol = NUMPERIOD
+            #     else:
+            #         symbol = NUMOTHER
+            # else:
+            #     if word is all caps:
+            #         symbol = ALLCAPS
+            #     elif len(word) == 2 and word[1] == '.':
+            #         symbol = CAPPERIOD
+            #     elif word[0] is cap and word[1:] contains no cap:
+            #         symbol = INITCAP
+
+        return symbol
 
     def replace_rare(self, corpusfile, rarecorpusfile):
         if self.word_counts is None:
             self.train(corpusfile)
 
-        self.word_counts[self.rare_symbol] = 0
+        self.word_counts[self.rare_symbol()] = 0
         for ne_tag in self.all_states:
-            self.emission_counts[(self.rare_symbol, ne_tag)] = 0
+            self.emission_counts[(self.rare_symbol(), ne_tag)] = 0
 
         rare_words = set()
         for word in self.word_counts:
             count = self.word_counts[word]
             if count < self.low_freq:
                 # delete the count for this word and add it to the rare count
-                self.word_counts[self.rare_symbol] += count
+                self.word_counts[self.rare_symbol()] += count
                 rare_words.add(word)
                 # do the same for each tag's emission counts
                 for ne_tag in self.all_states:
                     if (word, ne_tag) in self.emission_counts:
-                        self.emission_counts[(self.rare_symbol, ne_tag)] += self.emission_counts[(word, ne_tag)]
+                        self.emission_counts[(self.rare_symbol(), ne_tag)] += self.emission_counts[(word, ne_tag)]
                         del self.emission_counts[(word, ne_tag)]
 
         # remove rare counts
@@ -191,10 +250,12 @@ class Hmm(object):
 
         # write to the new corpus file
         for line in corpusfile:
-            line_pair = line.split(' ')
-            if line_pair[0] in rare_words:
-                line_pair[0] = self.rare_symbol
-            rarecorpusfile.write(' '.join(line_pair))
+            fields = line.split(' ')
+            if fields[0] in rare_words:
+                # Find the correct bucket for the rare word seen and replace with
+                # a symbol representing it.
+                fields[0] = self.rare_symbol(fields[0])
+            rarecorpusfile.write(' '.join(fields))
 
     def emission_prob(self, word, tag):
         if (word, tag) in self.emission_counts:  # pair has a valid emission count
@@ -202,7 +263,7 @@ class Hmm(object):
         elif word in self.word_counts:  # word exists with another tag, set this prob as 0
             return 0
         elif tag in self.all_states: # word not found in set, treat as rare
-            return self.emission_counts[(self.rare_symbol, tag)] / self.ngram_counts[0][(tag,)]
+            return self.emission_counts[(self.rare_symbol(), tag)] / self.ngram_counts[0][(tag,)]
         else:  # tag was not found in set
             sys.stderr.write("Faulty arguments for emission probability")
             return -1
