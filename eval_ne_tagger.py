@@ -125,6 +125,9 @@ class Evaluator(object):
         curr_gs_type = None   # prediction stream was previously in a named entity
         curr_gs_start = None # a new prediction starts at the current token
 
+        last_pred = []
+        last_gs = []
+
         total = 0
         for gs_word, gs_tag in gold_standard: # Move through the gold standard stream
             pred_word, pred_tag = prediction.next() # Get the corresponding item from the prediction stream
@@ -163,7 +166,7 @@ class Evaluator(object):
                 gs_starts = False            
 
             #For debugging:
-            #print pred_word, gs_tag, pred_tag, pred_ends, gs_ends, pred_start, gs_starts
+            # print pred_word, gs_tag, pred_tag, pred_ends, gs_ends, pred_start, gs_starts
 
 
             # Now try to match up named entities that end here
@@ -180,12 +183,15 @@ class Evaluator(object):
                     self.fn += 1
                     self.class_counts[curr_pred_type].fp += 1
                     self.class_counts[curr_gs_type].fn += 1
+                    sys.stderr.write('fp/fn: %s %s\n' % (str(last_pred), str(last_gs)))
             elif gs_ends: #Didn't find the named entity in the gold standard, count false negative
                 self.fn += 1
                 self.class_counts[curr_gs_type].fn += 1
+                sys.stderr.write('fn: %s %s\n' % (str(last_pred), str(last_gs)))
             elif pred_ends: #Named entity in the prediction doesn't match one int he gold_standard, count false positive
                 self.fp += 1
                 self.class_counts[curr_pred_type].fp += 1
+                sys.stderr.write('fp: %s %s\n' % (str(last_pred), str(last_gs)))
             elif curr_pred_type==None and curr_pred_type==None: #matching O tag or end of sentence, count true negative
                 self.tn += 1
                 for c in self.ne_classes:
@@ -204,6 +210,9 @@ class Evaluator(object):
             if pred_start:
                 curr_pred_start = total
                 curr_pred_type = pred_type
+
+            last_gs = (gs_word, gs_tag)
+            last_pred = (pred_word, pred_tag)
             total += 1
 
     def print_scores(self):

@@ -75,29 +75,41 @@ def get_ngrams(sent_iterator, n):
             yield n_gram        
 
 
-ALLNUM = '_ALLNUM_'
 ALLCAPS = '_ALLCAPS_'
+ALLNUM = '_ALLNUM_'
 CAPPERIOD = '_CAPPERIOD_'
 INITCAP = '_INITCAP_'
-FIRSTWORD = '_FIRSTWORD_'
+# FIRSTWORD = '_FIRSTWORD_'
 LOWERCASE = '_LOWERCASE_'
-NUM2D = '_NUM2D_'
+# NUM2D = '_NUM2D_'
 NUM4D = '_NUM4D_'
 NUMALPHA = '_NUMALPHA_'
-NUMDASH = '_NUMDASH_'
-NUMSLASH = '_NUMSLASH_'
 NUMCOMMA = '_NUMCOMMA_'
-NUMPERIOD = '_NUMPERIOD_'
+NUMDASH = '_NUMDASH_'
 NUMOTHER = '_NUMOTHER_'
+NUMPERIOD = '_NUMPERIOD_'
+NUMSLASH = '_NUMSLASH_'
 RARE = '_RARE_'
 
-all_rare_types = [ALLNUM, ALLCAPS, CAPPERIOD, INITCAP, FIRSTWORD, LOWERCASE, NUM2D,
-                  NUM4D, NUMALPHA, NUMDASH, NUMSLASH, NUMCOMMA, NUMPERIOD,
-                  NUMOTHER, RARE]
+all_rare_types = [ALLCAPS,
+                  ALLNUM,
+                  CAPPERIOD,
+                  INITCAP,
+                  # FIRSTWORD,
+                  LOWERCASE,
+                  # NUM2D,
+                  NUM4D,
+                  NUMALPHA,
+                  NUMCOMMA,
+                  NUMDASH,
+                  NUMOTHER,
+                  NUMPERIOD,
+                  NUMSLASH,
+                  RARE]
 
 RE_DIGIT = re.compile(r'\d')
 RE_ALPHA = re.compile(r'[a-zA-Z]')
-RE_DASH = re.compile(r'-')
+RE_DASH = re.compile(r'[-]')
 RE_SLASH = re.compile(r'[/\\]')
 RE_COMMA = re.compile(r',')
 RE_PERIOD = re.compile(r'[.]')
@@ -218,25 +230,25 @@ class Hmm(object):
             symbol = self.rare_word_symbols[word]
         elif word is not None:
             if RE_DIGIT.search(word):
-                if RE_ALLDIGIT.match(word):
-                    if len(word) == 2:
-                        symbol = NUM2D
-                    elif len(word) == 4:
-                        symbol = NUM4D
-                    else:
-                        symbol = ALLNUM
-                elif RE_ALPHA.search(word):
-                    symbol = NUMALPHA
-                elif RE_DASH.search(word):
-                    symbol = NUMDASH
-                elif RE_SLASH.search(word):
-                    symbol = NUMSLASH
-                elif RE_COMMA.search(word):
-                    symbol = NUMCOMMA
-                elif RE_PERIOD.search(word):
-                    symbol = NUMPERIOD
-                else:
-                    symbol = NUMOTHER
+                # if RE_ALLDIGIT.match(word):
+                #     # if len(word) == 2:
+                #     #     symbol = NUM2D
+                #     if len(word) == 4:
+                #         symbol = NUM4D
+                #     else:
+                #         symbol = ALLNUM
+                # elif RE_ALPHA.search(word):
+                #     symbol = NUMALPHA
+                # elif RE_DASH.search(word):
+                #     symbol = NUMDASH
+                # elif RE_SLASH.search(word):
+                #     symbol = NUMSLASH
+                # elif RE_COMMA.search(word):
+                #     symbol = NUMCOMMA
+                # elif RE_PERIOD.search(word):
+                #     symbol = NUMPERIOD
+                # else:
+                symbol = NUMOTHER
             else:
                 if RE_LOWER.match(word):
                     symbol = LOWERCASE
@@ -304,7 +316,10 @@ class Hmm(object):
                     # Find the correct bucket for the rare word seen and replace with
                     # a symbol representing it.
                     word = self.rare_symbol(word, firstword)
-                firstword = False
+
+                if firstword and word is not "\"":
+                    firstword = False
+                    
                 rarecorpusfile.write('%s %s\n' % (word, tag))
             rarecorpusfile.write('\n')
 
