@@ -6,6 +6,7 @@ __date__ ="$Sep 12, 2011"
 import sys
 from collections import defaultdict
 import math
+import re
 
 """
 Count n-gram frequencies in a CoNLL NER data file and write counts to
@@ -76,6 +77,10 @@ def get_ngrams(sent_iterator, n):
 
 ALLNUM = '_ALLNUM_'
 ALLCAPS = '_ALLCAPS_'
+CAPPERIOD = '_CAPPERIOD_'
+INITCAP = '_INITCAP_'
+FIRSTWORD = '_FIRSTWORD_'
+LOWERCASE = '_LOWERCASE_'
 NUM2D = '_NUM2D_'
 NUM4D = '_NUM4D_'
 NUMALPHA = '_NUMALPHA_'
@@ -84,11 +89,23 @@ NUMSLASH = '_NUMSLASH_'
 NUMCOMMA = '_NUMCOMMA_'
 NUMPERIOD = '_NUMPERIOD_'
 NUMOTHER = '_NUMOTHER_'
-CAPPERIOD = '_CAPPERIOD_'
-INITCAP = '_INITCAP_'
-FIRSTWORD = '_FIRSTWORD_'
-LOWERCASE = '_LOWERCASE_'
 RARE = '_RARE_'
+all_rare_types = [ALLNUM, ALLCAPS, CAPPERIOD, INITCAP, FIRSTWORD, LOWERCASE, NUM2D,
+                  NUM4D, NUMALPHA, NUMDASH, NUMSLASH, NUMCOMMA, NUMPERIOD,
+                  NUMOTHER, RARE]
+RE_DIGIT = re.compile('\d')
+RE_ALPHA = re.compile('\w')
+RE_DASH = re.compile('[\-]')
+RE_SLASH = re.compile('[/\\\]')
+RE_COMMA = re.compile('[\,]')
+RE_PERIOD = re.compile('[\.]')
+RE_ALLDIGIT = re.compile('\A\d*\Z')
+RE_CAP = re.compile('[A-Z]')
+RE_ALLCAPS = re.compile('\A[A-Z]*\Z')
+RE_LOWER = re.compile('\A[a-z]*\Z')
+RE_INITCAP = re.compile('\A[A-Z][^A-Z]*\Z')
+
+
 
 class Hmm(object):
     """
@@ -181,11 +198,11 @@ class Hmm(object):
                 self.word_counts[word] = count
 
 
-########################################################
-#########  Functions by Jason Mann #####################
-########################################################
+    ########################################################
+    #########  Functions by Jason Mann #####################
+    ########################################################
     
-    def rare_symbol(self, word = None):
+    def rare_symbol(self, word = None, firstword = False):
         """
         Assign symbols to rare words based on simple lexical categories, or just _RARE_
         """
@@ -193,41 +210,44 @@ class Hmm(object):
 
         if word is not None:
             pass
-            # if word contains digit:
-            #     if word is all nums:
-            #         if len(word) == 2 and :
-            #             symbol = NUM
-            #         elif len(word) == 4:
-            #             symbol = NUM4D
-            #         else:
-            #             symbol = ALLNUM
-            #     elif word contains alpha:
-            #         symbol = NUMALPHA
-            #     elif word contains dash:
-            #         symbol = NUMDASH
-            #     elif word contains slash:
-            #         symbol = NUMSLASH
-            #     elif word contains comma:
-            #         symbol = NUMCOMMA
-            #     elif word contains period:
-            #         symbol = NUMPERIOD
-            #     else:
-            #         symbol = NUMOTHER
-            # else:
-            #     if word is all caps:
-            #         symbol = ALLCAPS
-            #     elif len(word) == 2 and word[1] == '.':
-            #         symbol = CAPPERIOD
-            #     elif word[0] is cap and word[1:] contains no cap:
-            #         symbol = INITCAP
+            if RE_DIGIT.match(word):
+                if RE_ALLDIGIT.match(word):
+                    if len(word) == 2:
+                        symbol = NUM2D
+                    elif len(word) == 4:
+                        symbol = NUM4D
+                    else:
+                        symbol = ALLNUM
+                elif RE_ALPHA.match(word):
+                    symbol = NUMALPHA
+                elif RE_DASH.match(word):
+                    symbol = NUMDASH
+                elif RE_SLASH.match(word):
+                    symbol = NUMSLASH
+                elif RE_COMMA.match(word):
+                    symbol = NUMCOMMA
+                elif RE_PERIOD.match(word):
+                    symbol = NUMPERIOD
+                else:
+                    symbol = NUMOTHER
+            else:
+                if RE_ALLCAPS.match(word):
+                    symbol = ALLCAPS
+                elif len(word) == 2 and word[1] == '.':
+                    symbol = CAPPERIOD
+                elif firstword:
+                    symbol = FIRSTWORD
+                elif RE_INITCAP.match(word):
+                    symbol = INITCAP
+                elif RE_LOWER.match(word):
+                    symbol = LOWERCASE
 
         return symbol
 
     def replace_rare(self, corpusfile, rarecorpusfile):
-        if self.word_counts is None:
-            self.train(corpusfile)
+        for rare_type in all_rare_types:
+            self.word_counts[rare_type] = 0
 
-        self.word_counts[self.rare_symbol()] = 0
         for ne_tag in self.all_states:
             self.emission_counts[(self.rare_symbol(), ne_tag)] = 0
 
@@ -236,12 +256,12 @@ class Hmm(object):
             count = self.word_counts[word]
             if count < self.low_freq:
                 # delete the count for this word and add it to the rare count
-                self.word_counts[self.rare_symbol()] += count
+                self.word_counts[self.rare_symbol(word)] += count
                 rare_words.add(word)
                 # do the same for each tag's emission counts
                 for ne_tag in self.all_states:
                     if (word, ne_tag) in self.emission_counts:
-                        self.emission_counts[(self.rare_symbol(), ne_tag)] += self.emission_counts[(word, ne_tag)]
+                        self.emission_counts[(self.rare_symbol(word), ne_tag)] += self.emission_counts[(word, ne_tag)]
                         del self.emission_counts[(word, ne_tag)]
 
         # remove rare counts
@@ -249,13 +269,17 @@ class Hmm(object):
             del self.word_counts[word]
 
         # write to the new corpus file
-        for line in corpusfile:
-            fields = line.split(' ')
-            if fields[0] in rare_words:
-                # Find the correct bucket for the rare word seen and replace with
-                # a symbol representing it.
-                fields[0] = self.rare_symbol(fields[0])
-            rarecorpusfile.write(' '.join(fields))
+        sent_iterator = sentence_iterator(simple_conll_corpus_iterator(corpusfile))
+        for sent in sent_iterator:
+            firstword = True
+            for word, tag in sent:
+                if word in rare_words:
+                    # Find the correct bucket for the rare word seen and replace with
+                    # a symbol representing it.
+                    word = self.rare_symbol(word, firstword)
+                    firstword = False
+                rarecorpusfile.write('%s %s\n' % (word, tag))
+            rarecorpusfile.write('\n')
 
     def emission_prob(self, word, tag):
         if (word, tag) in self.emission_counts:  # pair has a valid emission count
