@@ -44,7 +44,7 @@ class ViterbiEntityTagger(object):
                         max_tag = None
                         for w in all_tags if i > 1 else ['*']:
                             prob = (pi[(i-1, w, u)] * self.hmm.ml_prob(v, (w, u))
-                                        * self.hmm.emission_prob(sent[i][0], v))
+                                        * self.hmm.emission_prob(sent[i][0], v, i==0))
                             if max_prob < prob:
                                 max_prob = prob
                                 max_tag = w

@@ -78,33 +78,33 @@ def get_ngrams(sent_iterator, n):
 ALLCAPS = '_ALLCAPS_'
 ALLNUM = '_ALLNUM_'
 CAPPERIOD = '_CAPPERIOD_'
+FIRSTWORD = '_FIRSTWORD_'
+HYPHENATED = '_HYPHEN_'
 INITCAP = '_INITCAP_'
-# FIRSTWORD = '_FIRSTWORD_'
 LOWERCASE = '_LOWERCASE_'
-# NUM2D = '_NUM2D_'
 NUM4D = '_NUM4D_'
 NUMALPHA = '_NUMALPHA_'
 NUMCOMMA = '_NUMCOMMA_'
-NUMDASH = '_NUMDASH_'
 NUMOTHER = '_NUMOTHER_'
 NUMPERIOD = '_NUMPERIOD_'
 NUMSLASH = '_NUMSLASH_'
+SOLOCAP = '_SOLOCAP_'
 RARE = '_RARE_'
 
 all_rare_types = [ALLCAPS,
                   ALLNUM,
                   CAPPERIOD,
                   INITCAP,
-                  # FIRSTWORD,
+                  FIRSTWORD,
+                  HYPHENATED,
                   LOWERCASE,
-                  # NUM2D,
                   NUM4D,
                   NUMALPHA,
                   NUMCOMMA,
-                  NUMDASH,
                   NUMOTHER,
                   NUMPERIOD,
                   NUMSLASH,
+                  SOLOCAP,
                   RARE]
 
 RE_DIGIT = re.compile(r'\d')
@@ -117,7 +117,8 @@ RE_CAP = re.compile(r'[A-Z]')
 
 RE_ALLDIGIT = re.compile(r'\A\d*\Z')
 RE_ALLCAPS = re.compile(r'\A[A-Z]*\Z')
-RE_INITIALS = re.compile(r'\A([A-Z][.])*\Z')
+RE_CAPPERIOD = re.compile(r'\A([A-Z][.])*\Z')
+RE_HYPHEN = re.compile(r'\A[a-zA-Z]*-[a-zA-Z]*\Z')
 RE_INITCAP = re.compile(r'\A[A-Z][^A-Z]*\Z')
 RE_LOWER = re.compile(r'\A[a-z]*\Z')
 
@@ -219,7 +220,7 @@ class Hmm(object):
     #########  Functions by Jason Mann #####################
     ########################################################
     
-    def rare_symbol(self, word = None, firstword = False):
+    def rare_symbol(self, word = None, is_firstword = False):
         """
         Assign symbols to rare words based on simple lexical categories, or just _RARE_
         """
@@ -228,108 +229,133 @@ class Hmm(object):
         if word in self.rare_word_symbols:
             # for speed, due to multiple lookups for each word
             symbol = self.rare_word_symbols[word]
-        elif word is not None:
-            if RE_DIGIT.search(word):
-                # if RE_ALLDIGIT.match(word):
-                #     # if len(word) == 2:
-                #     #     symbol = NUM2D
-                #     if len(word) == 4:
-                #         symbol = NUM4D
-                #     else:
-                #         symbol = ALLNUM
-                # elif RE_ALPHA.search(word):
-                #     symbol = NUMALPHA
-                # elif RE_DASH.search(word):
-                #     symbol = NUMDASH
-                # elif RE_SLASH.search(word):
-                #     symbol = NUMSLASH
-                # elif RE_COMMA.search(word):
-                #     symbol = NUMCOMMA
-                # elif RE_PERIOD.search(word):
-                #     symbol = NUMPERIOD
-                # else:
-                symbol = NUMOTHER
-            else:
-                if RE_LOWER.match(word):
-                    symbol = LOWERCASE
-                elif RE_INITIALS.match(word):
-                    symbol = CAPPERIOD
-                # elif firstword:
-                #     symbol = FIRSTWORD
-                elif RE_INITCAP.match(word):
-                    symbol = INITCAP
-                elif RE_ALLCAPS.match(word):
-                    init_cap = word.capitalize()
-                    lower = word.lower()
-                    # Have to check if they are in the dict first, so that we dont
-                    # change the size of the dict while a higher level loop is running
-                    if init_cap in self.word_counts and lower in self.word_counts:
-                        if self.word_counts[init_cap] >= self.word_counts[lower]:
-                            symbol = init_cap
-                        else:
-                            symbol = lower
-                    elif init_cap in self.word_counts:
-                        symbol = init_cap
-                    elif lower in self.word_counts:
-                        symbol = lower
-                    else:
-                        symbol = ALLCAPS
-            # sys.stderr.write('%s %s\n' % (word, symbol))
+        else:
+            if word is not None:
+                if RE_DIGIT.search(word):
+                    # if RE_ALLDIGIT.match(word):
+                    #     # if len(word) == 2:
+                    #     #     symbol = NUM2D
+                    #     if len(word) == 4:
+                    #         symbol = NUM4D
+                    #     else:
+                    #         symbol = ALLNUM
+                    # elif RE_ALPHA.search(word):
+                    #     symbol = NUMALPHA
+                    # elif RE_SLASH.search(word):
+                    #     symbol = NUMSLASH
+                    # elif RE_COMMA.search(word):
+                    #     symbol = NUMCOMMA
+                    # elif RE_PERIOD.search(word):
+                    #     symbol = NUMPERIOD
+                    # else:
+                    symbol = NUMOTHER
+                else:
+                    if is_firstword or RE_ALLCAPS.match(word):
+                        # If the word is all CAPS then check to see if either
+                        # a regularly capitalized or lowercased form of the word exists
+                        # and pick the one that is has a higher probability.
+                        # Otherwise, label all caps.
+                        init_cap = word.capitalize()
+                        lower = word.lower()
+                        init_count = 0
+                        lower_count = 0
 
-        self.rare_word_symbols[word] = symbol
+                        # Have to check if they are in the dict first, so that we dont
+                        # add a zero count to the dictionary.
+                        if init_cap in self.word_counts:
+                            init_count = self.word_counts[init_cap]
+                        if lower in self.word_counts:
+                            lower_count = self.word_counts[lower]
+
+                        if len(word) == 1:
+                            symbol = SOLOCAP
+                        elif init_count > lower_count:
+                            if init_count < self.low_freq:
+                                symbol = self.rare_symbol(init_cap)
+                            else:
+                                symbol = init_cap
+                        elif lower_count > init_count:
+                            if lower_count < self.low_freq:
+                                symbol = self.rare_symbol(lower)
+                            else:
+                                symbol = lower
+                        elif not is_firstword:
+                            symbol = ALLCAPS
+                    elif RE_HYPHEN.match(word):
+                        symbol = HYPHENATED
+                    elif RE_LOWER.match(word):
+                        symbol = LOWERCASE
+                    elif RE_CAPPERIOD.match(word):
+                        symbol = CAPPERIOD
+                    elif RE_INITCAP.match(word):
+                        symbol = INITCAP
+                # sys.stderr.write('%s %s\n' % (word, symbol))
+            self.rare_word_symbols[word] = symbol
+
         return symbol
 
     def replace_rare(self, corpusfile, rarecorpusfile):
-        for rare_type in all_rare_types:
-            self.word_counts[rare_type] = 0
-            for ne_tag in self.all_states:
-                self.emission_counts[(rare_type, ne_tag)] = 0
+        """
+        Finds rare words in the corpus file, and replaces
+        them with their rare types, modifying the counts as
+        necessary to keep track of the changes
+        """
+        # Initialize word counts for all possible rare types.
+        # for rare_type in all_rare_types:
+        #     self.word_counts[rare_type] = 0
 
-        rare_words = set()
-        for word in self.word_counts:
-            count = self.word_counts[word]
-            if count < self.low_freq:
-                rare_type = self.rare_symbol(word)
-
-                # delete the count for this word and add it to the rare count
-                self.word_counts[rare_type] += count
-                rare_words.add(word)
-
-                # do the same for each tag's emission counts
-                for ne_tag in self.all_states:
-                    if (word, ne_tag) in self.emission_counts:
-                        self.emission_counts[(rare_type, ne_tag)] += self.emission_counts[(word, ne_tag)]
-                        del self.emission_counts[(word, ne_tag)]
-
-        # remove rare counts
-        for word in rare_words:
-            del self.word_counts[word]
-
-        sys.stderr.write(str(sorted({k:v for k,v in self.word_counts.items() if k.startswith('_') or v < 5}.items()))+'\n\n')
-
-        # write to the new corpus file
+        # Read in the corpus file, finding rare words based on 
+        # their word count, and replace them with their type
         sent_iterator = sentence_iterator(simple_conll_corpus_iterator(corpusfile))
         for sent in sent_iterator:
-            firstword = True
+            is_firstword = True  # Keep track of the first word, for finding the rare type
             for word, tag in sent:
-                if word in rare_words:
-                    # Find the correct bucket for the rare word seen and replace with
-                    # a symbol representing it.
-                    word = self.rare_symbol(word, firstword)
+                # Check if the word is rare
+                count = self.word_counts[word]
+                if count < self.low_freq:
+                    rare_type = self.rare_symbol(word, is_firstword)
 
-                if firstword and word is not "\"":
-                    firstword = False
-                    
+                    # Add this word's count to the count
+                    # of its rare type and delete the word count.
+                    # if not rare_type.startswith('_') and rare_type not in self.word_counts:
+                    #     sys.stderr.write('not found: %s %s\n' % (word, rare_type))
+                    #     self.word_counts[rare_type] = 0
+                    self.word_counts[rare_type] += count
+                    del self.word_counts[word]
+
+                    # Do the same for the emission count of the word/tag pair
+                    if (rare_type, tag) not in self.emission_counts:
+                        self.emission_counts[(rare_type, tag)] = 0
+                    self.emission_counts[(rare_type, tag)] += self.emission_counts[(word, tag)]
+                    del self.emission_counts[(word, tag)]
+
+                    # Replace the word with its rare type.
+                    word = rare_type
+
+                # Skip a quotation mark when considering the first word.
+                if is_firstword and word is not "\"":
+                    is_firstword = False
+
+                # Write the word/tag pair to the new file.
                 rarecorpusfile.write('%s %s\n' % (word, tag))
+            # Write the end of sentence to file.
             rarecorpusfile.write('\n')
 
-    def emission_prob(self, word, tag):
+        sys.stderr.write(str(sorted({k:v for k,v in self.word_counts.iteritems() if k.startswith('_') or v < 5}.iteritems()))+'\n\n')
+        sys.stderr.write(str(sorted({k:v for k,v in self.emission_counts.iteritems() if k[0].startswith('_')}.iteritems()))+'\n\n')
+        sys.stderr.write(str(sorted({k:v for k,v in self.emission_counts.iteritems() if k[1].endswith('ORG')}.iteritems()))+'\n\n')
+
+
+    def emission_prob(self, word, tag, is_firstword=False):
         if (word, tag) in self.emission_counts:  # pair has a valid emission count
             return self.emission_counts[(word, tag)] / self.ngram_counts[0][(tag,)]
         elif word in self.word_counts:  # word exists with another tag, set this prob as 0
             return 0
         elif tag in self.all_states: # word not found in set, treat as rare
-            return self.emission_counts[(self.rare_symbol(word), tag)] / self.ngram_counts[0][(tag,)]
+            prob = self.emission_counts[(self.rare_symbol(word, is_firstword), tag)] / self.ngram_counts[0][(tag,)]
+            if prob is 0:
+                prob = self.emission_counts[(self.rare_symbol(), tag)] / self.ngram_counts[0][(tag,)]
+            return prob
         else:  # tag was not found in set
             sys.stderr.write("Faulty arguments for emission probability")
             return -1
