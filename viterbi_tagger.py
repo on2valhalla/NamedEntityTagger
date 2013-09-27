@@ -48,7 +48,6 @@ class ViterbiEntityTagger(object):
                             if max_prob < prob:
                                 max_prob = prob
                                 max_tag = w
-
                         pi[(i, u, v)] = max_prob
                         bp[(i, u, v)] = max_tag
 
@@ -57,6 +56,7 @@ class ViterbiEntityTagger(object):
             for u in all_tags if len(sent) > 1 else ['*']:
                 for v in all_tags:
                     prob = pi[(n-1, u, v)] * self.hmm.ml_prob('STOP', (u, v))
+                    # sys.stderr.write('%s %s %f\n' % (u, v, prob))
                     if max_sent_prob < prob:
                         max_sent_prob = prob
                         final_tags[n-2] = u
@@ -65,8 +65,9 @@ class ViterbiEntityTagger(object):
             for i in range(n-3, -1, -1):
                 final_tags[i] = bp[(i+2, final_tags[i+1], final_tags[i+2])]
 
-            # tagfile_out.write('%s\n\n\n%s\n\n\n%s\n' % (str(sorted(pi)), str(sorted(bp)), str(final_tags)))
-            # break
+            sys.stderr.write('%s\n\n\n%s\n\n\n%s\n' % (str(sorted({k:v for k,v in pi.items() if v > 0}.items())), 
+                                                        str(sorted({k:v for k,v in bp.items() if v > 0}.items())), 
+                                                        str(final_tags)))
 
             # Add a start symbol to the end of the tag list so that cyclically
             # it will be accessible for looking up the first element.
@@ -76,7 +77,7 @@ class ViterbiEntityTagger(object):
                 tag = final_tags[i]
                 prob = pi[(i, final_tags[i-1], final_tags[i])]
 
-                if  prob <= 0:
+                if prob <= 0:
                     log_prob = 0
                     sys.stderr.write('Zero Prob: %s\t%s\t%s\n' % (word, tag, str(final_tags)))
                 else:
@@ -85,10 +86,14 @@ class ViterbiEntityTagger(object):
                 tagfile_out.write('%s %s %f\n' % (word, tag, log_prob))
 
             if max_sent_prob <= 0:
-                sys.stderr.write('Zero probability. Not good\n')
+                max_sent_prob = 0
+                sys.stderr.write('Zero Prob final: %s\t%s\t%s\n' % (sent[n-1][0], final_tags[n-1], str(final_tags)))
+                sys.stderr.write('\n\n' + str(sorted({k:v for k,v in pi.items() if v > 0}.items())) + '\n')
             else:
-                tagfile_out.write('%s %s %f\n' % (sent[n-1][0], final_tags[n-1], math.log(max_sent_prob, 2)))
-                tagfile_out.write('\n')
+                max_sent_prob = math.log(max_sent_prob, 2)
+                
+            tagfile_out.write('%s %s %f\n' % (sent[n-1][0], final_tags[n-1], max_sent_prob))
+            tagfile_out.write('\n')
 
 
 

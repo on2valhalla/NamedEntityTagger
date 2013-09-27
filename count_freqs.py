@@ -213,38 +213,38 @@ class Hmm(object):
         """
         symbol = RARE
 
-        if word is not None:
-            if RE_DIGIT.search(word):
-                # if RE_ALLDIGIT.match(word):
-                #     if len(word) == 2:
-                #         symbol = NUM2D
-                #     elif len(word) == 4:
-                #         symbol = NUM4D
-                #     else:
-                #         symbol = ALLNUM
-                # elif RE_ALPHA.search(word):
-                #     symbol = NUMALPHA
-                # elif RE_DASH.search(word):
-                #     symbol = NUMDASH
-                # elif RE_SLASH.search(word):
-                #     symbol = NUMSLASH
-                # elif RE_COMMA.search(word):
-                #     symbol = NUMCOMMA
-                # elif RE_PERIOD.search(word):
-                #     symbol = NUMPERIOD
-                # else:
-                symbol = NUMOTHER
-            else:
-                if RE_ALLCAPS.match(word):
-                    symbol = ALLCAPS
-                elif len(word) == 2 and word[1] == '.':
-                    symbol = CAPPERIOD
-                elif firstword:
-                    symbol = FIRSTWORD
-                elif RE_INITCAP.match(word):
-                    symbol = INITCAP
-                elif RE_LOWER.match(word):
-                    symbol = LOWERCASE
+        # if word is not None:
+        #     if RE_DIGIT.search(word):
+        #         if RE_ALLDIGIT.match(word):
+        #             if len(word) == 2:
+        #                 symbol = NUM2D
+        #             elif len(word) == 4:
+        #                 symbol = NUM4D
+        #             else:
+        #                 symbol = ALLNUM
+        #         elif RE_ALPHA.search(word):
+        #             symbol = NUMALPHA
+        #         elif RE_DASH.search(word):
+        #             symbol = NUMDASH
+        #         elif RE_SLASH.search(word):
+        #             symbol = NUMSLASH
+        #         elif RE_COMMA.search(word):
+        #             symbol = NUMCOMMA
+        #         elif RE_PERIOD.search(word):
+        #             symbol = NUMPERIOD
+        #         else:
+        #             symbol = NUMOTHER
+        #     else:
+        #         if RE_ALLCAPS.match(word):
+        #             symbol = ALLCAPS
+        #         elif len(word) == 2 and word[1] == '.':
+        #             symbol = CAPPERIOD
+        #         elif firstword:
+        #             symbol = FIRSTWORD
+        #         elif RE_INITCAP.match(word):
+        #             symbol = INITCAP
+        #         elif RE_LOWER.match(word):
+        #             symbol = LOWERCASE
 
             # sys.stderr.write('%s %s\n' % (word, symbol))
 
