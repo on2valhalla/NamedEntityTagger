@@ -90,20 +90,25 @@ NUMCOMMA = '_NUMCOMMA_'
 NUMPERIOD = '_NUMPERIOD_'
 NUMOTHER = '_NUMOTHER_'
 RARE = '_RARE_'
+
 all_rare_types = [ALLNUM, ALLCAPS, CAPPERIOD, INITCAP, FIRSTWORD, LOWERCASE, NUM2D,
                   NUM4D, NUMALPHA, NUMDASH, NUMSLASH, NUMCOMMA, NUMPERIOD,
                   NUMOTHER, RARE]
-RE_DIGIT = re.compile('\d')
-RE_ALPHA = re.compile('\w')
-RE_DASH = re.compile('[\-]')
-RE_SLASH = re.compile('[/\\\]')
-RE_COMMA = re.compile('[\,]')
-RE_PERIOD = re.compile('[\.]')
-RE_ALLDIGIT = re.compile('\A\d*\Z')
-RE_CAP = re.compile('[A-Z]')
-RE_ALLCAPS = re.compile('\A[A-Z]*\Z')
-RE_LOWER = re.compile('\A[a-z]*\Z')
-RE_INITCAP = re.compile('\A[A-Z][^A-Z]*\Z')
+
+# Search Regexs
+RE_DIGIT = re.compile(r'\d')
+RE_ALPHA = re.compile(r'[a-zA-Z]')
+RE_DASH = re.compile(r'-')
+RE_SLASH = re.compile(r'[/\\]')
+RE_COMMA = re.compile(r',')
+RE_PERIOD = re.compile(r'.')
+RE_CAP = re.compile(r'[A-Z]')
+
+# Match regexs
+RE_ALLDIGIT = re.compile(r'\A\d*\Z')
+RE_ALLCAPS = re.compile(r'\A[A-Z]*\Z')
+RE_LOWER = re.compile(r'\A[a-z]*\Z')
+RE_INITCAP = re.compile(r'\A[A-Z][^A-Z]*\Z')
 
 
 
@@ -209,27 +214,26 @@ class Hmm(object):
         symbol = RARE
 
         if word is not None:
-            pass
-            if RE_DIGIT.match(word):
-                if RE_ALLDIGIT.match(word):
-                    if len(word) == 2:
-                        symbol = NUM2D
-                    elif len(word) == 4:
-                        symbol = NUM4D
-                    else:
-                        symbol = ALLNUM
-                elif RE_ALPHA.match(word):
-                    symbol = NUMALPHA
-                elif RE_DASH.match(word):
-                    symbol = NUMDASH
-                elif RE_SLASH.match(word):
-                    symbol = NUMSLASH
-                elif RE_COMMA.match(word):
-                    symbol = NUMCOMMA
-                elif RE_PERIOD.match(word):
-                    symbol = NUMPERIOD
-                else:
-                    symbol = NUMOTHER
+            if RE_DIGIT.search(word):
+                # if RE_ALLDIGIT.match(word):
+                #     if len(word) == 2:
+                #         symbol = NUM2D
+                #     elif len(word) == 4:
+                #         symbol = NUM4D
+                #     else:
+                #         symbol = ALLNUM
+                # elif RE_ALPHA.search(word):
+                #     symbol = NUMALPHA
+                # elif RE_DASH.search(word):
+                #     symbol = NUMDASH
+                # elif RE_SLASH.search(word):
+                #     symbol = NUMSLASH
+                # elif RE_COMMA.search(word):
+                #     symbol = NUMCOMMA
+                # elif RE_PERIOD.search(word):
+                #     symbol = NUMPERIOD
+                # else:
+                symbol = NUMOTHER
             else:
                 if RE_ALLCAPS.match(word):
                     symbol = ALLCAPS
@@ -241,6 +245,8 @@ class Hmm(object):
                     symbol = INITCAP
                 elif RE_LOWER.match(word):
                     symbol = LOWERCASE
+
+            # sys.stderr.write('%s %s\n' % (word, symbol))
 
         return symbol
 
@@ -256,12 +262,13 @@ class Hmm(object):
             count = self.word_counts[word]
             if count < self.low_freq:
                 # delete the count for this word and add it to the rare count
-                self.word_counts[self.rare_symbol(word)] += count
+                rare_type = self.rare_symbol(word)
+                self.word_counts[rare_type] += count
                 rare_words.add(word)
                 # do the same for each tag's emission counts
                 for ne_tag in self.all_states:
                     if (word, ne_tag) in self.emission_counts:
-                        self.emission_counts[(self.rare_symbol(word), ne_tag)] += self.emission_counts[(word, ne_tag)]
+                        self.emission_counts[(rare_type, ne_tag)] += self.emission_counts[(word, ne_tag)]
                         del self.emission_counts[(word, ne_tag)]
 
         # remove rare counts
@@ -277,7 +284,7 @@ class Hmm(object):
                     # Find the correct bucket for the rare word seen and replace with
                     # a symbol representing it.
                     word = self.rare_symbol(word, firstword)
-                    firstword = False
+                firstword = False
                 rarecorpusfile.write('%s %s\n' % (word, tag))
             rarecorpusfile.write('\n')
 
@@ -287,7 +294,7 @@ class Hmm(object):
         elif word in self.word_counts:  # word exists with another tag, set this prob as 0
             return 0
         elif tag in self.all_states: # word not found in set, treat as rare
-            return self.emission_counts[(self.rare_symbol(), tag)] / self.ngram_counts[0][(tag,)]
+            return self.emission_counts[(self.rare_symbol(word), tag)] / self.ngram_counts[0][(tag,)]
         else:  # tag was not found in set
             sys.stderr.write("Faulty arguments for emission probability")
             return -1
