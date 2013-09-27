@@ -93,17 +93,20 @@ RARE = '_RARE_'
 all_rare_types = [ALLNUM, ALLCAPS, CAPPERIOD, INITCAP, FIRSTWORD, LOWERCASE, NUM2D,
                   NUM4D, NUMALPHA, NUMDASH, NUMSLASH, NUMCOMMA, NUMPERIOD,
                   NUMOTHER, RARE]
-RE_DIGIT = re.compile('\d')
-RE_ALPHA = re.compile('\w')
-RE_DASH = re.compile('[\-]')
-RE_SLASH = re.compile('[/\\\]')
-RE_COMMA = re.compile('[\,]')
-RE_PERIOD = re.compile('[\.]')
-RE_ALLDIGIT = re.compile('\A\d*\Z')
-RE_CAP = re.compile('[A-Z]')
-RE_ALLCAPS = re.compile('\A[A-Z]*\Z')
-RE_LOWER = re.compile('\A[a-z]*\Z')
-RE_INITCAP = re.compile('\A[A-Z][^A-Z]*\Z')
+
+RE_DIGIT = re.compile(r'\d')
+RE_ALPHA = re.compile(r'\w')
+RE_DASH = re.compile(r'-')
+RE_SLASH = re.compile(r'[/\\]')
+RE_COMMA = re.compile(r',')
+RE_PERIOD = re.compile(r'[.]')
+RE_CAP = re.compile(r'[A-Z]')
+
+RE_ALLDIGIT = re.compile(r'\A\d*\Z')
+RE_ALLCAPS = re.compile(r'\A[A-Z]*\Z')
+RE_INITIALS = re.compile(r'\A([A-Z][.])*\Z')
+RE_INITCAP = re.compile(r'\A[A-Z][^A-Z]*\Z')
+RE_LOWER = re.compile(r'\A[a-z]*\Z')
 
 
 
@@ -210,7 +213,7 @@ class Hmm(object):
 
         if word is not None:
             pass
-            if RE_DIGIT.match(word):
+            if RE_DIGIT.search(word):
                 if RE_ALLDIGIT.match(word):
                     if len(word) == 2:
                         symbol = NUM2D
@@ -218,22 +221,22 @@ class Hmm(object):
                         symbol = NUM4D
                     else:
                         symbol = ALLNUM
-                elif RE_ALPHA.match(word):
+                elif RE_ALPHA.search(word):
                     symbol = NUMALPHA
-                elif RE_DASH.match(word):
+                elif RE_DASH.search(word):
                     symbol = NUMDASH
-                elif RE_SLASH.match(word):
+                elif RE_SLASH.search(word):
                     symbol = NUMSLASH
-                elif RE_COMMA.match(word):
+                elif RE_COMMA.search(word):
                     symbol = NUMCOMMA
-                elif RE_PERIOD.match(word):
+                elif RE_PERIOD.search(word):
                     symbol = NUMPERIOD
                 else:
                     symbol = NUMOTHER
             else:
                 if RE_ALLCAPS.match(word):
                     symbol = ALLCAPS
-                elif len(word) == 2 and word[1] == '.':
+                elif RE_INITIALS.match(word):
                     symbol = CAPPERIOD
                 elif firstword:
                     symbol = FIRSTWORD
@@ -247,26 +250,30 @@ class Hmm(object):
     def replace_rare(self, corpusfile, rarecorpusfile):
         for rare_type in all_rare_types:
             self.word_counts[rare_type] = 0
-
-        for ne_tag in self.all_states:
-            self.emission_counts[(self.rare_symbol(), ne_tag)] = 0
+            for ne_tag in self.all_states:
+                self.emission_counts[(rare_type, ne_tag)] = 0
 
         rare_words = set()
         for word in self.word_counts:
             count = self.word_counts[word]
             if count < self.low_freq:
+                rare_type = self.rare_symbol(word)
                 # delete the count for this word and add it to the rare count
-                self.word_counts[self.rare_symbol(word)] += count
+                self.word_counts[rare_type] += count
                 rare_words.add(word)
+                sys.stderr.write('%s %s\n' % (word, rare_type))
                 # do the same for each tag's emission counts
                 for ne_tag in self.all_states:
                     if (word, ne_tag) in self.emission_counts:
-                        self.emission_counts[(self.rare_symbol(word), ne_tag)] += self.emission_counts[(word, ne_tag)]
+                        self.emission_counts[(rare_type, ne_tag)] += self.emission_counts[(word, ne_tag)]
                         del self.emission_counts[(word, ne_tag)]
 
         # remove rare counts
         for word in rare_words:
             del self.word_counts[word]
+
+        sys.stderr.write(str(sorted({k:v for k,v in self.word_counts.items() if k.startswith('_')}.items()))+'\n\n')
+        sys.stderr.write(str(rare_words)+'\n\n')
 
         # write to the new corpus file
         sent_iterator = sentence_iterator(simple_conll_corpus_iterator(corpusfile))
@@ -277,7 +284,7 @@ class Hmm(object):
                     # Find the correct bucket for the rare word seen and replace with
                     # a symbol representing it.
                     word = self.rare_symbol(word, firstword)
-                    firstword = False
+                firstword = False
                 rarecorpusfile.write('%s %s\n' % (word, tag))
             rarecorpusfile.write('\n')
 

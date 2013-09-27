@@ -55,8 +55,18 @@ MISC:	 0.830065	0.689468	0.753262
 Question 6
 ==========
 
-First Pass
+First Pass 
 ----------
+
+'_ALLCAPS_':		 2204
+'_ALLNUM_':			 565
+'_CAPPERIOD_':		 18
+'_INITCAP_':		 10588
+'_LOWERCASE_':		 11196
+'_NUM4D_':			 321
+'_NUMALPHA_':		 3519
+'_RARE_':			 1829
+
 Found 4266 NEs. Expected 5931 NEs; Correct: 3508.
 
 	 precision 	recall 		F1-Score
