@@ -90,12 +90,13 @@ NUMCOMMA = '_NUMCOMMA_'
 NUMPERIOD = '_NUMPERIOD_'
 NUMOTHER = '_NUMOTHER_'
 RARE = '_RARE_'
+
 all_rare_types = [ALLNUM, ALLCAPS, CAPPERIOD, INITCAP, FIRSTWORD, LOWERCASE, NUM2D,
                   NUM4D, NUMALPHA, NUMDASH, NUMSLASH, NUMCOMMA, NUMPERIOD,
                   NUMOTHER, RARE]
 
 RE_DIGIT = re.compile(r'\d')
-RE_ALPHA = re.compile(r'\w')
+RE_ALPHA = re.compile(r'[a-zA-Z]')
 RE_DASH = re.compile(r'-')
 RE_SLASH = re.compile(r'[/\\]')
 RE_COMMA = re.compile(r',')
@@ -123,6 +124,7 @@ class Hmm(object):
         self.ngram_counts = [defaultdict(int) for i in xrange(self.n)]
         self.word_counts = defaultdict(int)
         self.all_states = set()
+        self.rare_word_symbols = defaultdict(str)
 
     def train(self, corpus_file):
         """
@@ -211,8 +213,10 @@ class Hmm(object):
         """
         symbol = RARE
 
-        if word is not None:
-            pass
+        if word in self.rare_word_symbols:
+            # for speed, due to multiple lookups for each word
+            symbol = self.rare_word_symbols[word]
+        elif word is not None:
             if RE_DIGIT.search(word):
                 if RE_ALLDIGIT.match(word):
                     if len(word) == 2:
@@ -234,17 +238,33 @@ class Hmm(object):
                 else:
                     symbol = NUMOTHER
             else:
-                if RE_ALLCAPS.match(word):
-                    symbol = ALLCAPS
+                if RE_LOWER.match(word):
+                    symbol = LOWERCASE
                 elif RE_INITIALS.match(word):
                     symbol = CAPPERIOD
-                elif firstword:
-                    symbol = FIRSTWORD
+                # elif firstword:
+                #     symbol = FIRSTWORD
                 elif RE_INITCAP.match(word):
                     symbol = INITCAP
-                elif RE_LOWER.match(word):
-                    symbol = LOWERCASE
+                elif RE_ALLCAPS.match(word):
+                    init_cap = word.capitalize()
+                    lower = word.lower()
+                    # Have to check if they are in the dict first, so that we dont
+                    # change the size of the dict while a higher level loop is running
+                    if init_cap in self.word_counts and lower in self.word_counts:
+                        if self.word_counts[init_cap] >= self.word_counts[lower]:
+                            symbol = init_cap
+                        else:
+                            symbol = lower
+                    elif init_cap in self.word_counts:
+                        symbol = init_cap
+                    elif lower in self.word_counts:
+                        symbol = lower
+                    else:
+                        symbol = ALLCAPS
+            # sys.stderr.write('%s %s\n' % (word, symbol))
 
+        self.rare_word_symbols[word] = symbol
         return symbol
 
     def replace_rare(self, corpusfile, rarecorpusfile):
@@ -258,10 +278,11 @@ class Hmm(object):
             count = self.word_counts[word]
             if count < self.low_freq:
                 rare_type = self.rare_symbol(word)
+
                 # delete the count for this word and add it to the rare count
                 self.word_counts[rare_type] += count
                 rare_words.add(word)
-                sys.stderr.write('%s %s\n' % (word, rare_type))
+
                 # do the same for each tag's emission counts
                 for ne_tag in self.all_states:
                     if (word, ne_tag) in self.emission_counts:
@@ -272,8 +293,7 @@ class Hmm(object):
         for word in rare_words:
             del self.word_counts[word]
 
-        sys.stderr.write(str(sorted({k:v for k,v in self.word_counts.items() if k.startswith('_')}.items()))+'\n\n')
-        sys.stderr.write(str(rare_words)+'\n\n')
+        sys.stderr.write(str(sorted({k:v for k,v in self.word_counts.items() if k.startswith('_') or v < 5}.items()))+'\n\n')
 
         # write to the new corpus file
         sent_iterator = sentence_iterator(simple_conll_corpus_iterator(corpusfile))
@@ -294,7 +314,7 @@ class Hmm(object):
         elif word in self.word_counts:  # word exists with another tag, set this prob as 0
             return 0
         elif tag in self.all_states: # word not found in set, treat as rare
-            return self.emission_counts[(self.rare_symbol(), tag)] / self.ngram_counts[0][(tag,)]
+            return self.emission_counts[(self.rare_symbol(word), tag)] / self.ngram_counts[0][(tag,)]
         else:  # tag was not found in set
             sys.stderr.write("Faulty arguments for emission probability")
             return -1
