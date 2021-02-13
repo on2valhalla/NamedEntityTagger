@@ -1,5 +1,3 @@
-Jason Carlisle Mann
-jcm2207@columbia.edu
 
 Question 4
 ==========
